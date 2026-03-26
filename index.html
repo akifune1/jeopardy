@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jeopardy!</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0a0e2e;
+    --royal: #1a2a8f;
+    --gold: #f5c518;
+    --gold-dark: #c9a000;
+    --gold-light: #ffe97a;
+    --white: #ffffff;
+    --card-bg: #1a2a8f;
+    --card-used: #0d1a5c;
+    --glow: 0 0 20px rgba(245,197,24,0.6), 0 0 60px rgba(245,197,24,0.2);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--navy);
+    font-family: 'Oswald', sans-serif;
+    height: 100vh;
+    overflow: hidden; 
+    display: flex;
+    flex-direction: column;
+    color: var(--white);
+    background-image:
+      radial-gradient(ellipse at 20% 20%, rgba(26,42,143,0.5) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 80%, rgba(26,42,143,0.4) 0%, transparent 60%),
+      repeating-linear-gradient(0deg, transparent, transparent 60px, rgba(255,255,255,0.015) 60px, rgba(255,255,255,0.015) 61px),
+      repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(255,255,255,0.015) 60px, rgba(255,255,255,0.015) 61px);
+    cursor: pointer; 
+  }
+
+  body.playing { cursor: default; }
+
+  /* ─── HEADER & INTRO ─── */
+  header {
+    text-align: center;
+    padding: 3vh 20px 1vh;
+    position: relative;
+    z-index: 10;
+    flex-shrink: 0;
+    transform: translate3d(0, 35vh, 0) scale(1.2);
+    transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+  }
+
+  body.playing header {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  .title-wrap { display: inline-block; position: relative; }
+
+  h1 {
+    font-family: 'Anton', sans-serif;
+    font-size: clamp(3rem, 10vw, 6.5rem);
+    color: var(--gold);
+    letter-spacing: 0.05em;
+    text-shadow: var(--glow), 4px 4px 0 var(--gold-dark), 8px 8px 0 rgba(0,0,0,0.4);
+    animation: introTitlePop 0.8s cubic-bezier(0.175,0.885,0.32,1.275) both;
+  }
+
+  .credits-text {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(1rem, 2.5vw, 1.4rem);
+    letter-spacing: 0.4em;
+    color: var(--gold-light);
+    text-shadow: 0 0 10px rgba(245,197,24,0.5);
+    margin-top: -8px;
+    opacity: 0;
+    transform: translateY(15px);
+    transition: opacity 0.6s 0.4s ease, transform 0.6s 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  body.playing .credits-text {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .press-start {
+    margin-top: 5vh;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(1.2rem, 3vw, 2rem);
+    color: var(--gold);
+    letter-spacing: 0.25em;
+    text-shadow: 0 0 10px rgba(245,197,24,0.8);
+    opacity: 0;
+    /* Appear right after title pops, then blink */
+    animation: fadeIn 0.5s 1s forwards, retroBlink 1.2s 1.5s step-start infinite;
+  }
+
+  body.playing .press-start { display: none; }
+
+  @keyframes introTitlePop {
+    0% { opacity: 0; transform: scale(0.3) rotate(-8deg) translateY(40px); filter: blur(10px); }
+    100% { opacity: 1; transform: scale(1) rotate(0deg) translateY(0); filter: blur(0); }
+  }
+
+  @keyframes fadeIn { to { opacity: 1; } }
+  @keyframes retroBlink { 50% { opacity: 0; } }
+
+  /* ─── GAME CONTENT WRAPPER ─── */
+  .game-content {
+    display: flex; flex-direction: column; flex: 1;
+    min-height: 0; 
+    opacity: 0; visibility: hidden; pointer-events: none;
+  }
+
+  body.playing .game-content {
+    opacity: 1; visibility: visible; pointer-events: all;
+  }
+
+  /* ─── SCOREBOARD ─── */
+  .scoreboard {
+    display: flex; justify-content: center; gap: 24px;
+    padding: 1vh 20px 2vh;
+  }
+
+  body.playing .scoreboard {
+    animation: uiSlideUp 0.6s 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .player-score {
+    background: linear-gradient(135deg, rgba(26,42,143,0.9), rgba(10,14,46,0.9));
+    border: 2px solid var(--gold);
+    border-radius: 10px;
+    padding: 1vh 40px;
+    text-align: center;
+    box-shadow: 0 0 15px rgba(245,197,24,0.15);
+    min-width: 200px;
+  }
+
+  .score-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(1rem, 2.5vh, 1.2rem);
+    letter-spacing: 0.2em;
+    color: rgba(255,255,255,0.7);
+  }
+
+  .score-points {
+    font-family: 'Anton', sans-serif;
+    font-size: clamp(2.5rem, 6vh, 3.5rem);
+    color: var(--gold);
+    line-height: 1;
+    text-shadow: 0 0 12px rgba(245,197,24,0.5);
+    transition: all 0.4s ease;
+  }
+
+  .score-points.bump { animation: scoreBump 0.5s cubic-bezier(0.175,0.885,0.32,1.275); }
+  @keyframes scoreBump { 50% { transform: scale(1.4); color: var(--gold-light); } }
+
+  /* ─── BOARD ─── */
+  .board-wrap {
+    flex: 1; min-height: 0;
+    padding: 0 20px 2.5vh;
+    display: flex; justify-content: center;
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: auto repeat(3, 1fr); 
+    gap: 1.5vh 1.5vw;
+    width: 100%;
+    max-width: 1000px;
+    height: 100%;
+  }
+
+  @keyframes uiSlideUp {
+    0% { opacity: 0; transform: translateY(40px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes uiPopIn {
+    0% { opacity: 0; transform: scale(0.6) translateY(30px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .category-header {
+    background: linear-gradient(180deg, #2a3fa0 0%, var(--royal) 100%);
+    border: 2px solid rgba(245,197,24,0.5);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 1.5vh 10px;
+    text-align: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(1.2rem, 3.5vh, 1.8rem);
+    letter-spacing: 0.12em;
+    color: var(--white);
+    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+  }
+
+  .card { perspective: 800px; cursor: pointer; height: 100%; }
+  .card-inner {
+    width: 100%; height: 100%; position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .card.flipped .card-inner { transform: rotateY(180deg); }
+
+  .card-front, .card-back {
+    position: absolute; inset: 0;
+    border-radius: 8px;
+    backface-visibility: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card-front {
+    background: linear-gradient(160deg, #1e35a8, #0f1f80);
+    border: 2px solid rgba(245,197,24,0.6);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
+    transition: box-shadow 0.2s, transform 0.15s;
+  }
+  .card:not(.used):hover .card-front {
+    box-shadow: var(--glow), 0 8px 30px rgba(0,0,0,0.5);
+    transform: translateY(-4px) scale(1.02);
+  }
+  .card-back {
+    background: linear-gradient(160deg, #0d1a5c, #080e30);
+    border: 2px solid rgba(245,197,24,0.2);
+    transform: rotateY(180deg);
+  }
+  .card.used .card-front {
+    background: var(--card-used); border-color: rgba(255,255,255,0.1);
+    cursor: default; box-shadow: none;
+  }
+  .card.used .point-value { opacity: 0.15; }
+
+  .point-value {
+    font-family: 'Anton', sans-serif;
+    font-size: clamp(2rem, 6vh, 3.5rem);
+    color: var(--gold);
+    text-shadow: 0 0 16px rgba(245,197,24,0.6), 2px 2px 0 rgba(0,0,0,0.4);
+    letter-spacing: 0.02em;
+  }
+  .peso-sign { font-size: 60%; vertical-align: super; margin-right: 1px; }
+
+  /* ─── MODAL & EFFECTS ─── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(5,8,30,0.92); display: flex; align-items: center; justify-content: center;
+    z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; backdrop-filter: blur(8px);
+  }
+  .modal-overlay.active { opacity: 1; pointer-events: all; }
+  .modal {
+    background: linear-gradient(145deg, #0f1e7a, #08124a); border: 2px solid var(--gold); border-radius: 20px;
+    padding: 40px; max-width: 680px; width: 90%; max-height: 90vh; overflow-y: auto; text-align: center;
+    box-shadow: var(--glow), 0 30px 80px rgba(0,0,0,0.8); transform: scale(0.7) translateY(40px); transition: transform 0.4s cubic-bezier(0.175,0.885,0.32,1.275);
+  }
+  .modal-overlay.active .modal { transform: scale(1) translateY(0); }
+  
+  .modal-category { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.3em; font-size: 1rem; color: var(--gold); opacity: 0.7; margin-bottom: 8px; }
+  .modal-points { font-family: 'Anton', sans-serif; font-size: 3rem; color: var(--gold); text-shadow: var(--glow); margin-bottom: 20px; line-height: 1; }
+  .modal-divider { width: 60px; height: 3px; background: linear-gradient(90deg, transparent, var(--gold), transparent); margin: 0 auto 24px; border-radius: 2px; }
+  .modal-question { font-size: clamp(1.2rem, 3vw, 1.8rem); font-weight: 600; line-height: 1.4; color: var(--white); margin-bottom: 30px; letter-spacing: 0.03em; }
+  .modal-answer { background: rgba(245,197,24,0.12); border: 1px solid rgba(245,197,24,0.4); border-radius: 12px; padding: 18px 24px; margin-bottom: 32px; font-size: 1.2rem; color: var(--gold-light); font-weight: 600; letter-spacing: 0.06em; display: none; animation: answerReveal 0.5s cubic-bezier(0.175,0.885,0.32,1.275) both; }
+  .modal-answer.visible { display: block; }
+  @keyframes answerReveal { 0% { opacity: 0; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1); } }
+  .answer-label { font-size: 0.7rem; letter-spacing: 0.25em; color: rgba(245,197,24,0.5); margin-bottom: 6px; }
+
+  .btn-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .btn { font-family: 'Oswald', sans-serif; font-size: 0.9rem; font-weight: 600; letter-spacing: 0.15em; border: none; border-radius: 8px; padding: 12px 24px; cursor: pointer; transition: all 0.2s ease; text-transform: uppercase; }
+  .btn-reveal { background: var(--gold); color: var(--navy); box-shadow: 0 4px 16px rgba(245,197,24,0.4); }
+  .btn-reveal:hover { background: var(--gold-light); transform: translateY(-2px); box-shadow: 0 6px 24px rgba(245,197,24,0.6); }
+  .btn-score { background: #198754; color: var(--white); box-shadow: 0 4px 16px rgba(25,135,84,0.4); display: none; }
+  .btn-score:hover { background: #1f9e64; transform: translateY(-2px); }
+  .btn-wrong { background: #dc3545; color: var(--white); box-shadow: 0 4px 16px rgba(220,53,69,0.4); display: none; }
+  .btn-wrong:hover { background: #e84a59; transform: translateY(-2px); }
+  .btn-close { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); border: 2px solid rgba(255,255,255,0.12); }
+  .btn-close:hover { background: rgba(255,255,255,0.15); color: var(--white); }
+
+  .particle { position: fixed; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; z-index: 9999; animation: particleFly 1.2s ease-out forwards; }
+  @keyframes particleFly { 0% { opacity: 1; transform: translate(0,0) scale(1); } 100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0.2); } }
+
+  .winner-overlay { position: fixed; inset: 0; background: rgba(5,8,30,0.97); display: none; align-items: center; justify-content: center; z-index: 2000; flex-direction: column; gap: 24px; text-align: center; padding: 20px; }
+  .winner-overlay.show { display: flex; animation: fadeIn 0.5s ease; }
+  .winner-trophy { font-size: 6rem; animation: trophySpin 2s ease infinite; }
+  @keyframes trophySpin { 0%,100% { transform: rotate(-10deg) scale(1); } 50% { transform: rotate(10deg) scale(1.1); } }
+  .winner-title { font-family: 'Anton', sans-serif; font-size: clamp(2rem, 8vw, 5rem); color: var(--gold); text-shadow: var(--glow); animation: pulseGlow 1.5s ease infinite alternate; }
+  @keyframes pulseGlow { from { text-shadow: 0 0 20px rgba(245,197,24,0.5); } to { text-shadow: 0 0 60px rgba(245,197,24,1), 0 0 100px rgba(245,197,24,0.5); } }
+  .winner-name { font-family: 'Bebas Neue', sans-serif; font-size: clamp(2rem, 6vw, 4rem); color: var(--white); letter-spacing: 0.2em; }
+  .btn-restart { font-family: 'Oswald', sans-serif; font-size: 1rem; font-weight: 700; letter-spacing: 0.2em; background: var(--gold); color: var(--navy); border: none; border-radius: 10px; padding: 16px 40px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; box-shadow: 0 4px 20px rgba(245,197,24,0.5); z-index: 2001; }
+  .btn-restart:hover { transform: scale(1.05); box-shadow: 0 6px 30px rgba(245,197,24,0.8); }
+  .confetti-container { position: fixed; inset: 0; pointer-events: none; z-index: 1999; }
+  
+  .flash { position: fixed; inset: 0; background: var(--gold); opacity: 0; pointer-events: none; z-index: 3000; animation: flashOut 0.4s ease forwards; }
+  @keyframes flashOut { 0% { opacity: 0.25; } 100% { opacity: 0; } }
+
+  .stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+  .star { position: absolute; background: var(--white); border-radius: 50%; animation: twinkle var(--d) ease infinite; }
+  @keyframes twinkle { 0%,100% { opacity: var(--min-op); transform: scale(1); } 50% { opacity: var(--max-op); transform: scale(1.5); } }
+</style>
+</head>
+<body>
+
+<div class="stars" id="stars"></div>
+
+<header id="mainHeader">
+  <div class="title-wrap">
+    <h1>JEOPARDY!</h1>
+    <div class="credits-text">MADE BY MGA TAU</div>
+  </div>
+  <div class="press-start" id="pressStart">PRESS ANYWHERE TO START</div>
+</header>
+
+<div class="game-content" id="gameContent">
+  <div class="scoreboard">
+    <div class="player-score">
+      <div class="score-label">TOTAL SCORE</div>
+      <div class="score-points" id="scoreValue">₱0</div>
+    </div>
+  </div>
+  <div class="board-wrap">
+    <div class="board" id="board"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modal">
+    <div class="modal-category" id="modalCategory"></div>
+    <div class="modal-points" id="modalPoints"></div>
+    <div class="modal-divider"></div>
+    <div class="modal-question" id="modalQuestion"></div>
+    <div class="modal-answer" id="modalAnswer">
+      <div class="answer-label">ANSWER</div>
+      <div id="answerText"></div>
+    </div>
+    
+    <div class="btn-row">
+      <button class="btn btn-reveal" id="revealBtn" onclick="revealAnswer(event)">Reveal Answer</button>
+      <button class="btn btn-score" id="correctBtn" onclick="awardPoints(event)">Correct (+<span id="ptsValue"></span>)</button>
+      <button class="btn btn-wrong" id="wrongBtn" onclick="markUsedOnly(event)">Incorrect / Skip</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-close" onclick="closeModal(event)">Cancel ✕</button>
+    </div>
+  </div>
+</div>
+
+<div class="winner-overlay" id="winnerOverlay">
+  <div class="confetti-container" id="confettiContainer"></div>
+  <div class="winner-trophy">🏆</div>
+  <div class="winner-title">GAME COMPLETED!</div>
+  <div class="winner-name" id="winnerName">FINAL SCORE: ₱0</div>
+  <button class="btn-restart" onclick="restartGame(event)">Play Again ↺</button>
+</div>
+
+<script>
+const CATEGORIES = [
+  {
+    name: "UAT",
+    questions: [
+      { q: "What does UAT mean?", a: "User Acceptance Testing", pts: 10 },
+      { q: "Give the three types of Remarks in UAT.", a: "No Issue, Minimal Issue, Defective", pts: 20 },
+      { q: "How many characters are there in the serial number of a typical Acer Laptop?", a: "22 Characters", pts: 50 },
+    ]
+  },
+  {
+    name: "SHIPMENT",
+    questions: [
+      { q: "In configuring, what are the four things that is needed to be shown in the picture for documentation?", a: "Windows Activation, Serial Number, Camera Test, Windows Version", pts: 10 },
+      { q: "What is the declared value of a Jabra Headphone?", a: "5000 Pesos", pts: 20 },
+      { q: "How will you know if a delivery is considered Rush?", a: "If its colored Peach in the Template or if its outside Luzon", pts: 50 },
+    ]
+  },
+  {
+    name: "RETRIEVAL",
+    questions: [
+      { q: "How many calls are needed before considering the user to be unresponsive?", a: "Three", pts: 10 },
+      { q: "The temp prep files are for what type of End Users?", a: "Active Users", pts: 20 },
+      { q: "How many updates are needed before following up to LBC?", a: "Three", pts: 50 },
+    ]
+  }
+];
+
+let currentScore = 0;
+let usedCards = new Set();
+let currentCard = null;
+let totalCards = CATEGORIES.reduce((sum, cat) => sum + cat.questions.length, 0);
+let isPlaying = false;
+
+/* ─── START LOGIC ─── */
+document.body.addEventListener('click', function initGame() {
+  if (!isPlaying) {
+    isPlaying = true;
+    document.body.classList.add('playing');
+    buildBoard();
+  }
+});
+
+(function makeStars() {
+  const c = document.getElementById('stars');
+  for (let i = 0; i < 80; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const size = Math.random() * 2.5 + 0.5;
+    s.style.cssText = `width:${size}px;height:${size}px;left:${Math.random()*100}%;top:${Math.random()*100}%;--d:${(Math.random()*4+2).toFixed(1)}s;--min-op:${(Math.random()*0.2).toFixed(2)};--max-op:${(Math.random()*0.4+0.2).toFixed(2)};animation-delay:${(Math.random()*5).toFixed(1)}s;`;
+    c.appendChild(s);
+  }
+})();
+
+function buildBoard() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  
+  const baseDelay = 0.5; 
+
+  CATEGORIES.forEach((cat, ci) => {
+    const h = document.createElement('div');
+    h.className = 'category-header';
+    h.textContent = cat.name;
+    h.style.animation = `uiSlideUp 0.5s ${baseDelay + (ci * 0.1)}s cubic-bezier(0.2, 0.8, 0.2, 1) both`;
+    board.appendChild(h);
+  });
+
+  const maxQuestions = Math.max(...CATEGORIES.map(c => c.questions.length));
+
+  for(let qi = 0; qi < maxQuestions; qi++) {
+    CATEGORIES.forEach((cat, ci) => {
+      const q = cat.questions[qi];
+      if(!q) { board.appendChild(document.createElement('div')); return; }
+      
+      const id = `${ci}-${qi}`;
+      const card = document.createElement('div');
+      card.className = 'card' + (usedCards.has(id) ? ' used flipped' : '');
+      card.id = `card-${id}`;
+      
+      if(!usedCards.has(id)) {
+        const staggerDelay = baseDelay + 0.2 + ((qi + ci) * 0.1);
+        card.style.animation = `uiPopIn 0.4s ${staggerDelay}s cubic-bezier(0.175, 0.885, 0.32, 1.275) both`;
+      }
+
+      card.onclick = (e) => { e.stopPropagation(); openCard(ci, qi); };
+      card.innerHTML = `<div class="card-inner"><div class="card-front"><div class="point-value"><span class="peso-sign">₱</span>${q.pts}</div></div><div class="card-back"></div></div>`;
+      board.appendChild(card);
+    });
+  }
+}
+
+function openCard(ci, qi) {
+  const id = `${ci}-${qi}`;
+  if (usedCards.has(id)) return;
+
+  const cat = CATEGORIES[ci];
+  const q = cat.questions[qi];
+  currentCard = { ci, qi, id, pts: q.pts };
+
+  document.getElementById('modalCategory').textContent = cat.name;
+  document.getElementById('modalPoints').textContent = `₱${q.pts}`;
+  document.getElementById('modalQuestion').textContent = q.q;
+  document.getElementById('answerText').textContent = q.a;
+  document.getElementById('modalAnswer').classList.remove('visible');
+  
+  document.getElementById('revealBtn').style.display = 'block';
+  document.getElementById('correctBtn').style.display = 'none';
+  document.getElementById('wrongBtn').style.display = 'none';
+  document.getElementById('ptsValue').textContent = q.pts;
+
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+function revealAnswer(e) {
+  e.stopPropagation();
+  document.getElementById('modalAnswer').classList.add('visible');
+  document.getElementById('revealBtn').style.display = 'none';
+  document.getElementById('correctBtn').style.display = 'block';
+  document.getElementById('wrongBtn').style.display = 'block';
+}
+
+function awardPoints(e) {
+  e.stopPropagation();
+  if (!currentCard) return;
+  currentScore += currentCard.pts;
+  updateScoreDisplay();
+  shootParticles();
+  markUsed();
+}
+
+function markUsedOnly(e) { e.stopPropagation(); markUsed(); }
+
+function markUsed() {
+  if (!currentCard) return;
+  usedCards.add(currentCard.id);
+  const cardEl = document.getElementById(`card-${currentCard.id}`);
+  if (cardEl) {
+    cardEl.classList.add('flipped');
+    setTimeout(() => cardEl.classList.add('used'), 700);
+  }
+  flashScreen();
+  closeModal({stopPropagation: ()=>{}});
+
+  if (usedCards.size === totalCards) setTimeout(showWinner, 600);
+}
+
+function closeModal(e) {
+  e.stopPropagation();
+  document.getElementById('modalOverlay').classList.remove('active');
+  currentCard = null;
+}
+
+function updateScoreDisplay() {
+  const el = document.getElementById('scoreValue');
+  el.textContent = `₱${currentScore.toLocaleString()}`;
+  el.classList.remove('bump');
+  void el.offsetWidth;
+  el.classList.add('bump');
+}
+
+function shootParticles() {
+  const colors = ['#f5c518','#ffe97a','#ffffff','#c9a000','#ffd700'];
+  for (let i = 0; i < 20; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 80 + Math.random() * 140;
+    p.style.cssText = `left:50%;top:50%;background:${colors[Math.floor(Math.random()*colors.length)]};--tx:${(Math.cos(angle)*dist).toFixed(0)}px;--ty:${(Math.sin(angle)*dist).toFixed(0)}px;animation-duration:${(0.8 + Math.random()*0.6).toFixed(2)}s;width:${4+Math.random()*8}px;height:${4+Math.random()*8}px;`;
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 1400);
+  }
+}
+
+function flashScreen() {
+  const f = document.createElement('div');
+  f.className = 'flash';
+  document.body.appendChild(f);
+  setTimeout(() => f.remove(), 400);
+}
+
+function showWinner() {
+  document.getElementById('winnerName').textContent = `FINAL SCORE: ₱${currentScore.toLocaleString()}`;
+  document.getElementById('winnerOverlay').classList.add('show');
+  launchConfetti();
+}
+
+function launchConfetti() {
+  const container = document.getElementById('confettiContainer');
+  const colors = ['#f5c518','#ffe97a','#ffffff','#1a2a8f','#ff6b6b','#4ecdc4'];
+  for (let i = 0; i < 120; i++) {
+    setTimeout(() => {
+      const c = document.createElement('div');
+      const size = 6 + Math.random() * 10;
+      c.style.cssText = `position:absolute;width:${size}px;height:${size}px;background:${colors[Math.floor(Math.random()*colors.length)]};left:${Math.random()*100}%;top:-20px;border-radius:${Math.random()>0.5?'50%':'2px'};animation:confettiFall ${2+Math.random()*3}s linear ${Math.random()*2}s forwards;`;
+      container.appendChild(c);
+    }, i * 30);
+  }
+  const style = document.createElement('style');
+  style.textContent = `@keyframes confettiFall { 0% { transform: translateY(0) rotate(0deg); opacity:1; } 100% { transform: translateY(100vh) rotate(${Math.random()>0.5?'-':''}720deg); opacity:0; } }`;
+  document.head.appendChild(style);
+}
+
+function restartGame(e) {
+  e.stopPropagation();
+  currentScore = 0; usedCards.clear(); currentCard = null;
+  document.getElementById('scoreValue').textContent = '₱0';
+  document.getElementById('winnerOverlay').classList.remove('show');
+  document.getElementById('confettiContainer').innerHTML = '';
+  buildBoard();
+}
+</script>
+</body>
+</html>
